@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hello">this will post pictures to the jini photo server!</string>
+    <string name="app_name">jini photo server post</string>
+    <string name="msgUploaded">Photo Uploaded!</string>
+    <string name="msgUploadFailed">Upload Failed!</string>
+    <string name="msgPhotoUploadedSuccessfully">Photo Uploaded!</string>
+    <string name="msgPhotoUploadFailed">Upload Failed!</string>
+</resources>

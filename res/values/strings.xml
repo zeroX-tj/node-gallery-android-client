@@ -6,4 +6,11 @@
     <string name="msgUploadFailed">Upload Failed!</string>
     <string name="msgPhotoUploadedSuccessfully">Photo Uploaded!</string>
     <string name="msgPhotoUploadFailed">Upload Failed!</string>
+    <string name="pref_server">Set server:port</string>
+    <string name="pref_server_summary">Set your server:port</string>
+    <string name="pref_username">Set username</string>
+    <string name="pref_username_summary">Set your username</string>
+    <string name="pref_password">Set password</string>
+    <string name="pref_password_summary">Set your password</string>
+    <string name="menu_settings">Settings</string>
 </resources>

@@ -3,6 +3,5 @@ Jini's Unoffical node-gallery android client
 TODO:
   - Store id's returned from service in local storage linked to shared image
   - Retrieve list of images at /images, parse their status (Not submitted, Stored, Invalid) and show in list on main view
-  - Create settings screen to set node-gallery server url, port, username and password
 
 Currently no known bugs... =)

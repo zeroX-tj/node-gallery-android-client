@@ -6,7 +6,9 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
+import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 
 import android.app.Activity;
@@ -17,14 +19,17 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import javax.net.ssl.*;
 
-public class post_to_server extends Activity {
-    /**
-     * Called when the activity is first created.
-     */
+public class Main extends Activity {
+
+    private static final int RESULT_SETTINGS = 1;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,9 +61,10 @@ public class post_to_server extends Activity {
     }
 
     private class SendRequest extends AsyncTask<Uri, Integer, Integer> {
-        private final ProgressDialog dialog = new ProgressDialog(post_to_server.this);
+
+        private final ProgressDialog dialog = new ProgressDialog(Main.this);
         int serverResponseCode = 0;
-        String upLoadServerUri = "https://192.168.0.233:3000/images";
+
         /**
          * *******  File Path ************
          */
@@ -104,76 +110,95 @@ public class post_to_server extends Activity {
 
             } else {
                 try {
+                    SharedPreferences sharedPrefs = PreferenceManager
+                            .getDefaultSharedPreferences(Main.this);
 
-                    // open a URL connection to the Servlet
-                    FileInputStream fileInputStream = new FileInputStream(sourceFile);
-                    URL url = new URL(upLoadServerUri);
-                    trustEveryone();
-                    // Open a HTTP  connection to  the URL
-                    conn = (HttpsURLConnection) url.openConnection();
-                    conn.setDoInput(true); // Allow Inputs
-                    conn.setDoOutput(true); // Allow Outputs
-                    conn.setUseCaches(false); // Don't use a Cached Copy
-                    conn.setRequestMethod("POST");
-                    conn.setRequestProperty("Connection", "Keep-Alive");
-                    conn.setRequestProperty("ENCTYPE", "multipart/form-data");
-                    conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
-                    conn.setRequestProperty("uploaded_file", fileName);
-                    String userPassword = "x:y";
-                    String encoding = Base64.encodeToString(userPassword.getBytes("UTF-8"), Base64.DEFAULT);
-                    conn.setRequestProperty("Authorization", "Basic " + encoding);
+                    String server = sharedPrefs.getString("prefServer", null);
+                    String username = sharedPrefs.getString("prefUsername", null);
+                    String password = sharedPrefs.getString("prefPassword", null);
+                    if ((null != server && "" != server) && (null != username && "" != username) && (null != password && "" != password)) {
+                        String upLoadServerUri = "https://" + server + "/images";
 
-                    dos = new DataOutputStream(conn.getOutputStream());
+                        // open a URL connection to the Servlet
+                        FileInputStream fileInputStream = new FileInputStream(sourceFile);
+                        URL url = new URL(upLoadServerUri);
+                        trustEveryone();
+                        // Open a HTTP  connection to  the URL
+                        conn = (HttpsURLConnection) url.openConnection();
+                        conn.setDoInput(true); // Allow Inputs
+                        conn.setDoOutput(true); // Allow Outputs
+                        conn.setUseCaches(false); // Don't use a Cached Copy
+                        conn.setRequestMethod("POST");
+                        conn.setRequestProperty("Connection", "Keep-Alive");
+                        conn.setRequestProperty("ENCTYPE", "multipart/form-data");
+                        conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
+                        conn.setRequestProperty("uploaded_file", fileName);
+                        String userPassword = username+":"+password;
+                        String encoding = Base64.encodeToString(userPassword.getBytes("UTF-8"), Base64.DEFAULT);
+                        conn.setRequestProperty("Authorization", "Basic " + encoding);
 
-                    dos.writeBytes(twoHyphens + boundary + lineEnd);
-                    dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=\""
-                            + fileName + "\"" + lineEnd);
+                        dos = new DataOutputStream(conn.getOutputStream());
 
-                    dos.writeBytes(lineEnd);
+                        dos.writeBytes(twoHyphens + boundary + lineEnd);
+                        dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=\""
+                                + fileName + "\"" + lineEnd);
 
-                    // create a buffer of  maximum size
-                    bytesAvailable = fileInputStream.available();
+                        dos.writeBytes(lineEnd);
 
-                    bufferSize = Math.min(bytesAvailable, maxBufferSize);
-                    buffer = new byte[bufferSize];
-
-                    // read file and write it into form...
-                    bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-
-                    while (bytesRead > 0) {
-
-                        dos.write(buffer, 0, bufferSize);
+                        // create a buffer of  maximum size
                         bytesAvailable = fileInputStream.available();
+
                         bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                        buffer = new byte[bufferSize];
+
+                        // read file and write it into form...
                         bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
-                    }
+                        while (bytesRead > 0) {
 
-                    // send multipart form data necesssary after file data...
-                    dos.writeBytes(lineEnd);
-                    dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+                            dos.write(buffer, 0, bufferSize);
+                            bytesAvailable = fileInputStream.available();
+                            bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                            bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
-                    // Responses from the server (code and message)
-                    serverResponseCode = conn.getResponseCode();
-                    String serverResponseMessage = conn.getResponseMessage();
+                        }
 
-                    Log.i("uploadFile", "HTTP Response is : "
-                            + serverResponseMessage + ": " + serverResponseCode);
+                        // send multipart form data necesssary after file data...
+                        dos.writeBytes(lineEnd);
+                        dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
 
-                    if (serverResponseCode == 202) {
+                        // Responses from the server (code and message)
+                        serverResponseCode = conn.getResponseCode();
+                        String serverResponseMessage = conn.getResponseMessage();
+
+                        Log.i("uploadFile", "HTTP Response is : "
+                                + serverResponseMessage + ": " + serverResponseCode);
+
+                        if (serverResponseCode == 202) {
+
+                            runOnUiThread(new Runnable() {
+                                public void run() {
+                                    Toast.makeText(Main.this, "File Upload Complete.", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+
+                        //close the streams //
+                        fileInputStream.close();
+                        dos.flush();
+                        dos.close();
+                    } else {
+                        dialog.dismiss();
 
                         runOnUiThread(new Runnable() {
                             public void run() {
-                                Toast.makeText(post_to_server.this, "File Upload Complete.", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(Main.this, "Server settings are not defined, go to settings...",
+                                        Toast.LENGTH_LONG).show();
                             }
                         });
+
+                        Log.e("uploadFile", "error: ");
                     }
-
-                    //close the streams //
-                    fileInputStream.close();
-                    dos.flush();
-                    dos.close();
-
                 } catch (MalformedURLException ex) {
 
                     dialog.dismiss();
@@ -181,12 +206,12 @@ public class post_to_server extends Activity {
 
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            Toast.makeText(post_to_server.this, "MalformedURLException",
+                            Toast.makeText(Main.this, "MalformedURLException",
                                     Toast.LENGTH_SHORT).show();
                         }
                     });
 
-                    Log.e("Upload file to server", "error: " + ex.getMessage(), ex);
+                    Log.e("uploadFile", "error: " + ex.getMessage(), ex);
                 } catch (Exception e) {
 
                     dialog.dismiss();
@@ -194,11 +219,11 @@ public class post_to_server extends Activity {
 
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            Toast.makeText(post_to_server.this, "Got Exception : see logcat ",
+                            Toast.makeText(Main.this, "Got Exception : see logcat ",
                                     Toast.LENGTH_SHORT).show();
                         }
                     });
-                    Log.e("Upload file to server Exception", "Exception : "
+                    Log.e("uploadFile", "Exception : "
                             + e.getMessage(), e);
                 }
                 dialog.dismiss();
@@ -220,7 +245,7 @@ public class post_to_server extends Activity {
                     + result + ": " + serverResponseCode);
 
             this.dialog.dismiss();
-            Toast.makeText(post_to_server.this, result.toString(),
+            Toast.makeText(Main.this, result.toString(),
                     Toast.LENGTH_LONG).show();
         }
 
@@ -253,4 +278,43 @@ public class post_to_server extends Activity {
             e.printStackTrace();
         }
     }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.settings, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+
+            case R.id.menu_settings:
+                Intent i = new Intent(this, Settings.class);
+                startActivityForResult(i, RESULT_SETTINGS);
+                break;
+
+        }
+
+        return true;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode) {
+            case RESULT_SETTINGS:
+                confirmSettings();
+                break;
+
+        }
+
+    }
+
+    private void confirmSettings() {
+        Toast.makeText(Main.this, "Settings saved",
+                Toast.LENGTH_LONG).show();
+    }
+
 }

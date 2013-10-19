@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent">
+
+    <PreferenceCategory android:title="@string/pref_server" >
+        <EditTextPreference
+                android:title="@string/pref_server"
+                android:summary="@string/pref_server_summary"
+                android:key="prefServer"/>
+        <EditTextPreference
+                android:title="@string/pref_username"
+                android:summary="@string/pref_username_summary"
+                android:key="prefUsername"/>
+        <EditTextPreference
+                android:title="@string/pref_password"
+                android:summary="@string/pref_password_summary"
+                android:key="prefPassword"/>
+    </PreferenceCategory>
+
+</PreferenceScreen>

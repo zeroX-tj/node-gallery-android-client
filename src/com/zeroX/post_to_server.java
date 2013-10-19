@@ -45,7 +45,7 @@ public class post_to_server extends Activity {
                         Log.i("uploadFile", uri.toString());
                         return;
                     } catch (Exception e) {
-                        Log.e(this.getClass().getName(), e.toString());
+                        Log.e("uploadFile", e.toString());
                     }
 
                 } else if (extras.containsKey(Intent.EXTRA_TEXT)) {

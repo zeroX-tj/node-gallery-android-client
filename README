@@ -1,2 +1,9 @@
 Jini's Unoffical node-gallery android client
-This file was modified by IntelliJ IDEA 12.1.6 for binding GitHub repository
+
+TODO:
+  - Store id's returned from service in local storage linked to shared image
+  - Retrieve list of images at /images, parse their status (Not submitted, Stored, Invalid) and show in list on main view
+  - Create settings screen to set node-gallery server url, port, username and password
+
+BUGS:
+  - Will submit images on Rotate, Resume

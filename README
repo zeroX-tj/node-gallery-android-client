@@ -5,5 +5,4 @@ TODO:
   - Retrieve list of images at /images, parse their status (Not submitted, Stored, Invalid) and show in list on main view
   - Create settings screen to set node-gallery server url, port, username and password
 
-BUGS:
-  - Will submit images on Rotate, Resume
+Currently no known bugs... =)

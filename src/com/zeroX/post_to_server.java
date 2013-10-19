@@ -33,30 +33,29 @@ public class post_to_server extends Activity {
         Intent intent = getIntent();
         Bundle extras = intent.getExtras();
         String action = intent.getAction();
+        if (savedInstanceState == null) {
+            // if this is from the share menu
+            if (Intent.ACTION_SEND.equals(action)) {
+                if (extras.containsKey(Intent.EXTRA_STREAM)) {
+                    try {
+                        // Get resource path from intent callee
+                        Uri uri = (Uri) extras.getParcelable(Intent.EXTRA_STREAM);
 
-        // if this is from the share menu
-        if (Intent.ACTION_SEND.equals(action)) {
-            if (extras.containsKey(Intent.EXTRA_STREAM)) {
-                try {
-                    // Get resource path from intent callee
-                    Uri uri = (Uri) extras.getParcelable(Intent.EXTRA_STREAM);
+                        new SendRequest().execute(uri);
+                        Log.i("uploadFile", uri.toString());
+                        return;
+                    } catch (Exception e) {
+                        Log.e(this.getClass().getName(), e.toString());
+                    }
 
-                    new SendRequest().execute(uri);
-                    Log.i("uploadFile", uri.toString());
+                } else if (extras.containsKey(Intent.EXTRA_TEXT)) {
                     return;
-                } catch (Exception e) {
-                    Log.e(this.getClass().getName(), e.toString());
                 }
-
-            } else if (extras.containsKey(Intent.EXTRA_TEXT)) {
-                return;
             }
         }
-
     }
 
-    private class SendRequest extends AsyncTask<Uri, Integer, Integer>
-    {
+    private class SendRequest extends AsyncTask<Uri, Integer, Integer> {
         private final ProgressDialog dialog = new ProgressDialog(post_to_server.this);
         int serverResponseCode = 0;
         String upLoadServerUri = "https://192.168.0.233:3000/images";

@@ -5,6 +5,8 @@ import java.net.*;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.List;
 
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -21,48 +23,155 @@ import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.TextView;
+import android.widget.ListView;
 import android.widget.Toast;
+import com.nostra13.universalimageloader.core.DisplayImageOptions;
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.net.ssl.*;
 
-public class Main extends Activity {
+public class MainActivity extends Activity {
 
     private static final int RESULT_SETTINGS = 1;
+
+    List<Image> arrayOfList;
+    ListView listView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-        Intent intent = getIntent();
-        Bundle extras = intent.getExtras();
-        String action = intent.getAction();
-        if (savedInstanceState == null) {
-            // if this is from the share menu
-            if (Intent.ACTION_SEND.equals(action)) {
-                if (extras.containsKey(Intent.EXTRA_STREAM)) {
-                    try {
-                        // Get resource path from intent callee
-                        Uri uri = (Uri) extras.getParcelable(Intent.EXTRA_STREAM);
+        arrayOfList = new ArrayList<Image>();
+        listView = (ListView) findViewById(R.id.listview);
 
-                        new SendRequest().execute(uri);
-                        Log.i("uploadFile", uri.toString());
-                        return;
-                    } catch (Exception e) {
-                        Log.e("uploadFile", e.toString());
+        SharedPreferences sharedPrefs = PreferenceManager
+                .getDefaultSharedPreferences(MainActivity.this);
+        DisplayImageOptions defaultOptions = new DisplayImageOptions.Builder()
+                .showStubImage(R.drawable.placeholder)
+                .extraForDownloader(sharedPrefs)
+                .cacheInMemory(true)
+                .cacheOnDisc(true)
+                .build();
+        ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(this)
+                .defaultDisplayImageOptions(defaultOptions)
+                .threadPoolSize(2)
+                .imageDownloader(new ImageDownloader(this))
+                .build();
+        ImageLoader.getInstance().init(config);
+
+
+        if (Utils.isNetworkAvailable(MainActivity.this)) {
+            if (savedInstanceState == null) {
+                Intent intent = getIntent();
+                Bundle extras = intent.getExtras();
+                String action = intent.getAction();
+                // if this is from the share menu
+                if (Intent.ACTION_SEND.equals(action)) {
+                    if (extras.containsKey(Intent.EXTRA_STREAM)) {
+                        try {
+                            // Get resource path from intent callee
+                            Uri uri = (Uri) extras.getParcelable(Intent.EXTRA_STREAM);
+
+                            new SendRequest().execute(uri);
+                            Log.i("uploadFile", uri.toString());
+                            return;
+                        } catch (Exception e) {
+                            Log.e("uploadFile", e.toString());
+                        }
+
                     }
-
-                } else if (extras.containsKey(Intent.EXTRA_TEXT)) {
-                    return;
                 }
             }
+            new FetchImagesTask().execute();
+        } else {
+            Toast.makeText(MainActivity.this, "No Network Connection!!!", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // My AsyncTask start...
+
+    class FetchImagesTask extends AsyncTask<String, Void, Void> {
+
+        ProgressDialog pDialog;
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+
+            pDialog = new ProgressDialog(MainActivity.this);
+            pDialog.setMessage("Loading...");
+            pDialog.show();
+
+        }
+
+        @Override
+        protected Void doInBackground(String... params) {
+            //arrayOfList = new NamesParser().getData(params[0]);
+               SharedPreferences sharedPrefs = PreferenceManager
+                .getDefaultSharedPreferences(MainActivity.this);
+                  trustEveryone();
+            String server = sharedPrefs.getString("prefServer", null);
+            String username = sharedPrefs.getString("prefUsername", null);
+            String password = sharedPrefs.getString("prefPassword", null);
+            String readFeed = new ImageParser().readFeed(server, username, password);
+            try {
+                JSONArray jsonArray = new JSONArray(readFeed);
+                Log.i(ImageParser.class.getName(),
+                        "Number of entries " + jsonArray.length());
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject jsonObject = jsonArray.getJSONObject(i);
+                    Log.i(ImageParser.class.getName(), jsonObject.getString("id"));
+                    Image img = new Image("https://"+username+":"+password+"@"+server+"/images/"+jsonObject.getString("id"));
+                    arrayOfList.add(img);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
+
+            if (null != pDialog && pDialog.isShowing()) {
+                pDialog.dismiss();
+            }
+
+            if (null == arrayOfList || arrayOfList.size() == 0) {
+                Toast.makeText(MainActivity.this, "No data found from web!!!", Toast.LENGTH_SHORT).show();
+            } else {
+
+                // check data...
+                /*
+                 * for (int i = 0; i < arrayOfList.size(); i++) { Item item =
+				 * arrayOfList.get(i); System.out.println(item.getId());
+				 * System.out.println(item.getTitle());
+				 * System.out.println(item.getDesc());
+				 * System.out.println(item.getPubdate());
+				 * System.out.println(item.getLink()); }
+				 */
+
+                setAdapterToListview();
+
+            }
+
+        }
+    }
+
+    public void setAdapterToListview() {
+        ImageRowAdapter objAdapter = new ImageRowAdapter(MainActivity.this,
+                R.layout.image, arrayOfList);
+        listView.setAdapter(objAdapter);
     }
 
     private class SendRequest extends AsyncTask<Uri, Integer, Integer> {
 
-        private final ProgressDialog dialog = new ProgressDialog(Main.this);
+        private final ProgressDialog dialog = new ProgressDialog(MainActivity.this);
         int serverResponseCode = 0;
 
         /**
@@ -106,12 +215,18 @@ public class Main extends Activity {
                 Log.e("uploadFile", "Source File not exist :"
                         + uploadFilePath + "" + uploadFileName);
 
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        new FetchImagesTask().execute();
+                    }
+                });
+
                 return 0;
 
             } else {
                 try {
                     SharedPreferences sharedPrefs = PreferenceManager
-                            .getDefaultSharedPreferences(Main.this);
+                            .getDefaultSharedPreferences(MainActivity.this);
 
                     String server = sharedPrefs.getString("prefServer", null);
                     String username = sharedPrefs.getString("prefUsername", null);
@@ -133,7 +248,7 @@ public class Main extends Activity {
                         conn.setRequestProperty("ENCTYPE", "multipart/form-data");
                         conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
                         conn.setRequestProperty("uploaded_file", fileName);
-                        String userPassword = username+":"+password;
+                        String userPassword = username + ":" + password;
                         String encoding = Base64.encodeToString(userPassword.getBytes("UTF-8"), Base64.DEFAULT);
                         conn.setRequestProperty("Authorization", "Basic " + encoding);
 
@@ -178,7 +293,7 @@ public class Main extends Activity {
 
                             runOnUiThread(new Runnable() {
                                 public void run() {
-                                    Toast.makeText(Main.this, "File Upload Complete.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(MainActivity.this, "File Upload Complete.", Toast.LENGTH_SHORT).show();
                                 }
                             });
                         }
@@ -192,7 +307,7 @@ public class Main extends Activity {
 
                         runOnUiThread(new Runnable() {
                             public void run() {
-                                Toast.makeText(Main.this, "Server settings are not defined, go to settings...",
+                                Toast.makeText(MainActivity.this, "Server settings are not defined, go to settings...",
                                         Toast.LENGTH_LONG).show();
                             }
                         });
@@ -206,7 +321,7 @@ public class Main extends Activity {
 
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            Toast.makeText(Main.this, "MalformedURLException",
+                            Toast.makeText(MainActivity.this, "MalformedURLException",
                                     Toast.LENGTH_SHORT).show();
                         }
                     });
@@ -219,7 +334,7 @@ public class Main extends Activity {
 
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            Toast.makeText(Main.this, "Got Exception : see logcat ",
+                            Toast.makeText(MainActivity.this, "Got Exception : see logcat ",
                                     Toast.LENGTH_SHORT).show();
                         }
                     });
@@ -227,6 +342,12 @@ public class Main extends Activity {
                             + e.getMessage(), e);
                 }
                 dialog.dismiss();
+
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        new FetchImagesTask().execute();
+                    }
+                });
                 return serverResponseCode;
 
             } // End else block
@@ -245,7 +366,7 @@ public class Main extends Activity {
                     + result + ": " + serverResponseCode);
 
             this.dialog.dismiss();
-            Toast.makeText(Main.this, result.toString(),
+            Toast.makeText(MainActivity.this, result.toString(),
                     Toast.LENGTH_LONG).show();
         }
 
@@ -313,7 +434,7 @@ public class Main extends Activity {
     }
 
     private void confirmSettings() {
-        Toast.makeText(Main.this, "Settings saved",
+        Toast.makeText(MainActivity.this, "Settings saved",
                 Toast.LENGTH_LONG).show();
     }
 
